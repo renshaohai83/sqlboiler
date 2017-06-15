@@ -269,20 +269,19 @@ ColLoop:
 		ptrMap, ok := mapping[name]
 		if ok {
 			ptrs[i] = ptrMap
+		} else {
+			suffix := "." + name
+			for maybeMatch, mapping := range mapping {
+				if strings.HasSuffix(maybeMatch, suffix) {
+					ptrs[i] = mapping
+					continue ColLoop
+				}
+			}
+			//if cols isn't exist, will insert default interface's point to ptrs
 			continue
 		}
 
-		suffix := "." + name
-		for maybeMatch, mapping := range mapping {
-			if strings.HasSuffix(maybeMatch, suffix) {
-				ptrs[i] = mapping
-				continue ColLoop
-			}
-		}
-
-		return nil, errors.Errorf("could not find struct field name in mapping: %s", name)
 	}
-
 	return ptrs, nil
 }
 
@@ -291,7 +290,8 @@ ColLoop:
 func PtrsFromMapping(val reflect.Value, mapping []uint64) []interface{} {
 	ptrs := make([]interface{}, len(mapping))
 	for i, m := range mapping {
-		ptrs[i] = ptrFromMapping(val, m, true).Interface()
+		ptrs[i] = ptrFromMapping(val, m, true)
+
 	}
 	return ptrs
 }
@@ -301,24 +301,32 @@ func PtrsFromMapping(val reflect.Value, mapping []uint64) []interface{} {
 func ValuesFromMapping(val reflect.Value, mapping []uint64) []interface{} {
 	ptrs := make([]interface{}, len(mapping))
 	for i, m := range mapping {
-		ptrs[i] = ptrFromMapping(val, m, false).Interface()
+		ptrs[i] = ptrFromMapping(val, m, false)
 	}
 	return ptrs
 }
 
 // ptrFromMapping expects to be passed an addressable struct that it's looking
 // for things on.
-func ptrFromMapping(val reflect.Value, mapping uint64, addressOf bool) reflect.Value {
+func ptrFromMapping(val reflect.Value, mapping uint64, addressOf bool) interface{} {
+
+	if mapping == uint64(0) {
+		var ignored interface{}
+		return &ignored
+	}
+
 	for i := 0; i < 8; i++ {
 		v := (mapping >> uint(i*8)) & sentinel
 
 		if v == sentinel {
 			if addressOf && val.Kind() != reflect.Ptr {
-				return val.Addr()
+
+				return val.Addr().Interface()
 			} else if !addressOf && val.Kind() == reflect.Ptr {
-				return reflect.Indirect(val)
+				return reflect.Indirect(val).Interface()
+
 			}
-			return val
+			return val.Interface()
 		}
 
 		val = val.Field(int(v))
