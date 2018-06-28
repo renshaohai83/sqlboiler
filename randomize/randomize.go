@@ -14,12 +14,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	null "gopkg.in/nullbio/null.v6"
+	null "gopkg.in/volatiletech/null.v6"
 
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
-	"github.com/vattle/sqlboiler/strmangle"
-	"github.com/vattle/sqlboiler/types"
+	"github.com/volatiletech/sqlboiler/strmangle"
+	"github.com/volatiletech/sqlboiler/types"
 )
 
 var (
@@ -159,18 +159,17 @@ func randDate(s *Seed) time.Time {
 // If canBeNull is true:
 //  The value has the possibility of being null or non-zero at random.
 func randomizeField(s *Seed, field reflect.Value, fieldType string, canBeNull bool) error {
-
 	kind := field.Kind()
 	typ := field.Type()
 
 	if strings.HasPrefix(fieldType, "enum") {
-		enum, err := randEnumValue(fieldType)
+		enum, err := randEnumValue(s, fieldType)
 		if err != nil {
 			return err
 		}
 
 		if kind == reflect.Struct {
-			val := null.NewString(enum, rand.Intn(1) == 0)
+			val := null.NewString(enum, s.nextInt()%2 == 0)
 			field.Set(reflect.ValueOf(val))
 		} else {
 			field.Set(reflect.ValueOf(enum))
@@ -196,7 +195,11 @@ func randomizeField(s *Seed, field reflect.Value, fieldType string, canBeNull bo
 					return nil
 				}
 				if fieldType == "uuid" {
-					value = null.NewString(uuid.NewV4().String(), true)
+					randomUuid, err := uuid.NewV4()
+					if err != nil {
+						return err
+					}
+					value = null.NewString(randomUuid.String(), true)
 					field.Set(reflect.ValueOf(value))
 					return nil
 				}
@@ -269,8 +272,11 @@ func randomizeField(s *Seed, field reflect.Value, fieldType string, canBeNull bo
 					return nil
 				}
 				if fieldType == "uuid" {
-					value = uuid.NewV4().String()
-					field.Set(reflect.ValueOf(value))
+					value, err := uuid.NewV4()
+					if err != nil {
+						return err
+					}
+					field.Set(reflect.ValueOf(value.String()))
 					return nil
 				}
 				if fieldType == "box" || fieldType == "line" || fieldType == "lseg" ||
@@ -391,7 +397,11 @@ func getArrayRandValue(s *Seed, typ reflect.Type, fieldType string) interface{} 
 			return types.StringArray{value, value}
 		}
 		if fieldType == "uuid" {
-			value := uuid.NewV4().String()
+			randomUuid, err := uuid.NewV4()
+			if err != nil {
+				return err
+			}
+			value := randomUuid.String()
 			return types.StringArray{value, value}
 		}
 		if fieldType == "box" || fieldType == "line" || fieldType == "lseg" ||
@@ -623,13 +633,11 @@ func getVariableRandValue(s *Seed, kind reflect.Kind, typ reflect.Type) interfac
 	return nil
 }
 
-func randEnumValue(enum string) (string, error) {
+func randEnumValue(s *Seed, enum string) (string, error) {
 	vals := strmangle.ParseEnumVals(enum)
 	if vals == nil || len(vals) == 0 {
 		return "", fmt.Errorf("unable to parse enum string: %s", enum)
-	} else if len(vals) == 1 {
-		return vals[0], nil
 	}
 
-	return vals[rand.Intn(len(vals)-1)], nil
+	return vals[s.nextInt()%len(vals)], nil
 }

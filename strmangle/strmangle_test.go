@@ -139,6 +139,7 @@ func TestSingular(t *testing.T) {
 		{"hello_people", "hello_person"},
 		{"hello_person", "hello_person"},
 		{"friends", "friend"},
+		{"areas", "area"},
 		{"hello_there_people", "hello_there_person"},
 	}
 
@@ -159,6 +160,7 @@ func TestPlural(t *testing.T) {
 		{"hello_person", "hello_people"},
 		{"friend", "friends"},
 		{"friends", "friends"},
+		{"area", "areas"},
 		{"hello_there_person", "hello_there_people"},
 	}
 
@@ -594,9 +596,9 @@ func TestReplaceReservedWords(t *testing.T) {
 	for i, test := range tests {
 		got := ReplaceReservedWords(test.Word)
 		if test.Replace && !strings.HasSuffix(got, "_") {
-			t.Errorf("%i) want suffixed (%s), got: %s", i, test.Word, got)
+			t.Errorf("%d) want suffixed (%s), got: %s", i, test.Word, got)
 		} else if !test.Replace && strings.HasSuffix(got, "_") {
-			t.Errorf("%i) want normal (%s), got: %s", i, test.Word, got)
+			t.Errorf("%d) want normal (%s), got: %s", i, test.Word, got)
 		}
 	}
 }
